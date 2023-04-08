@@ -1,0 +1,111 @@
+#include "stdafx.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <conio.h>  
+#include <ctype.h>
+#include <iostream>
+#include <cmath> 
+#include <ctime>
+#include "StdAfx.h"
+#include <fstream>
+#include <iostream>
+using namespace std;
+float activ_fun(float NET)
+{
+	return 1 / (1 + exp(-NET));
+}
+float proizvod_activ_fun(float OUT)
+{
+	return OUT*(1 - OUT);
+}
+int main()
+{
+
+	float w1_1 = 0.3273, w1_2 = 0.2834, w1_3 = 0.5329;
+	float w2_1 = 0.3542, w2_2 = 0.4374, w2_3 = 0.3202;
+	float h = 0.1, cel = 0;
+	float correctirovka[6];
+	float delta[4];
+	float b1_1 = 0, b1_2 = 0, b1_3 = 0, b2_1 = 0;
+
+	ifstream inp("input.txt");
+	ifstream output("output.txt");
+	float vxod[702], vyxod[702];
+	for (int i = 0; i < 702; i++)
+	{
+		inp >> vxod[i];
+		output >> vyxod[i];
+		//cout << in[i] << " " << out[i] << endl;
+	}
+	for (int j = 0; j < 1000000; ++j)
+	{
+		cel = 0;
+		for (int i = 0; i < 702; i++)
+		{
+			b1_1 = vxod[i] * w1_1;
+			b1_2 = vxod[i] * w1_2;
+			b1_3 = vxod[i] * w1_3;
+			b1_1 = activ_fun(b1_1);
+			b1_2 = activ_fun(b1_2);
+			b1_3 = activ_fun(b1_3);
+			b2_1 = b1_1*w2_1 + b1_2*w2_2 + b1_3*w2_3;
+			b2_1 = activ_fun(b2_1);
+			cel += (vyxod[i] - b2_1) * (vyxod[i] - b2_1);
+
+
+			//Выходной слой дельта
+			delta[0] = -2 * (vyxod[i] - b2_1) * proizvod_activ_fun(b2_1);
+			//w2_3 = w2_3 + correctirovka[1];
+
+			// Скрытый слой дельта
+			delta[1] = 2 * proizvod_activ_fun(b1_1)*delta[0] * w2_1;
+			delta[3] = 2 * proizvod_activ_fun(b1_3)*delta[0] * w2_3;
+			delta[2] = 2 * proizvod_activ_fun(b1_2)*delta[0] * w2_2;
+			// рассчитываем на сколько корректируем веса скрытого слоя
+			correctirovka[3] = -delta[1] * vxod[i] * h;
+			correctirovka[4] = -delta[2] * vxod[i] * h;
+			correctirovka[5] = -delta[3] * vxod[i] * h;
+			// корректировка весов скрытого слоя
+			w1_1 = w1_1 + correctirovka[3];
+			w1_2 = w1_2 + correctirovka[4];
+			w1_3 = w1_3 + correctirovka[5];
+			// на сколько корректируем веса выходного слоя
+			correctirovka[0] = -delta[0] * h*b1_1;
+			correctirovka[1] = -delta[0] * h*b1_2;
+			correctirovka[2] = -delta[0] * h*b1_3;
+
+			//корректируем веса выходного слоя.
+			w2_1 = w2_1 + correctirovka[0];
+			w2_2 = w2_2 + correctirovka[1];
+			w2_3 = w2_3 + correctirovka[2];
+
+		}
+		cout << cel / 702 << endl;
+		if ((cel / 702) < 0.0002)
+			break;
+
+	}
+
+	// тестируем нейросеть
+	float test[230];
+	ifstream testirovanie("test.txt");
+	for (int i = 0; i < 230; i++)
+	{
+		testirovanie >> test[i];
+		cout << test[i] << endl;
+	}
+	for (int i = 0; i < 230; i++)
+	{
+		b1_1 = test[i] * w1_1;
+		b1_2 = test[i] * w1_2;
+		b1_3 = test[i] * w1_3;
+		b1_1 = activ_fun(b1_1);
+		b1_2 = activ_fun(b1_2);
+		b1_3 = activ_fun(b1_3);
+		b2_1 = b1_1*w2_1 + b1_2*w2_2 + b1_3*w2_3;
+		b2_1 = activ_fun(b2_1);
+		cout << b2_1 << endl;
+	}
+
+	return 0;
+}
